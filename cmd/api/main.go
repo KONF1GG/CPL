@@ -2,15 +2,34 @@ package main
 
 import (
 	"contralPlane/internal/config"
-	"fmt"
+	"contralPlane/internal/logger"
 	"log"
+	"os"
+
+	"go.uber.org/zap"
 )
 
 func main() {
-	cfg, err := config.LoadConfig()
-	if err != nil {
-		log.Fatal("load config %w", err)
+	mode := os.Getenv("MODE")
+	if mode == "" {
+		mode = "development"
 	}
 
-	fmt.Println(cfg)
+	logger, err := logger.Init(mode)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer logger.Sync()
+
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		logger.Fatal("failed to load config",
+			zap.Error(err),
+		)
+	}
+
+	logger.Info("config loaded successfully",
+		zap.String("http_port", cfg.HTTPPort),
+	)
 }
