@@ -1,0 +1,19 @@
+root = "."
+testdata_dir = "testdata"
+tmp_dir = "tmp"
+
+[build]
+  entrypoint = "./tmp/main"
+  cmd = "go build -o ./tmp/main ./cmd/api"
+  delay = 300
+  exclude_dir = ["assets", "tmp", "vendor", "testdata", ".git"]
+  exclude_regex = ["_test\\.go$"]
+  include_ext = ["go", "sql"]
+  send_interrupt = true
+  kill_delay = "500ms"
+
+[log]
+  time = true
+
+[misc]
+  clean_on_exit = true
