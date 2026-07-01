@@ -1,8 +1,8 @@
 package main
 
 import (
-	"contralPlane/internal/config"
-	"contralPlane/internal/logger"
+	"CPL/internal/config"
+	"CPL/internal/logger"
 	"log"
 	"os"
 
