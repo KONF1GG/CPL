@@ -16,13 +16,13 @@ func NewTaskRepo(db *gorm.DB) *TaskRepository {
 }
 
 func (r *TaskRepository) Create(ctx context.Context, task *models.Task) error {
-	err := r.db.WithContext(ctx).Create(task).Error
+	err := DBFromContext(ctx, r.db).WithContext(ctx).Create(task).Error
 	return mapGORMError(err)
 }
 
 func (r *TaskRepository) GetByID(ctx context.Context, id uint) (*models.Task, error) {
 	var task models.Task
-	err := r.db.WithContext(ctx).First(&task, id).Error
+	err := DBFromContext(ctx, r.db).WithContext(ctx).First(&task, id).Error
 	if err != nil {
 		return nil, mapGORMError(err)
 	}
@@ -31,13 +31,13 @@ func (r *TaskRepository) GetByID(ctx context.Context, id uint) (*models.Task, er
 
 func (r *TaskRepository) GetAll(ctx context.Context) ([]models.Task, error) {
 	var tasks []models.Task
-	err := r.db.WithContext(ctx).Order("created_at DESC").Find(&tasks).Error
+	err := DBFromContext(ctx, r.db).WithContext(ctx).Order("created_at DESC").Find(&tasks).Error
 	return tasks, mapGORMError(err)
 }
 
 func (r *TaskRepository) ListByVMID(ctx context.Context, vmID uint) ([]models.Task, error) {
 	var tasks []models.Task
-	err := r.db.WithContext(ctx).
+	err := DBFromContext(ctx, r.db).WithContext(ctx).
 		Where("vm_id = ?", vmID).
 		Order("created_at DESC").
 		Find(&tasks).Error
@@ -45,7 +45,7 @@ func (r *TaskRepository) ListByVMID(ctx context.Context, vmID uint) ([]models.Ta
 }
 
 func (r *TaskRepository) Update(ctx context.Context, task *models.Task) error {
-	result := r.db.WithContext(ctx).Save(task)
+	result := DBFromContext(ctx, r.db).WithContext(ctx).Save(task)
 	if result.Error != nil {
 		return mapGORMError(result.Error)
 	}

@@ -11,18 +11,17 @@ type VMRepository struct {
 	db *gorm.DB
 }
 
-func NewVMRepository(db *gorm.DB) VMRepository {
-	return VMRepository{db: db}
-
+func NewVMRepository(db *gorm.DB) *VMRepository {
+	return &VMRepository{db: db}
 }
 
 func (r *VMRepository) Create(ctx context.Context, vm *models.VM) error {
-	err := r.db.WithContext(ctx).Create(vm).Error
+	err := DBFromContext(ctx, r.db).WithContext(ctx).Create((vm)).Error
 	return mapGORMError(err)
 }
 
 func (r *VMRepository) Update(ctx context.Context, vm *models.VM) error {
-	result := r.db.WithContext(ctx).Save(vm)
+	result := DBFromContext(ctx, r.db).WithContext(ctx).Save(vm)
 	if result.Error != nil {
 		return mapGORMError(result.Error)
 	}
@@ -33,7 +32,7 @@ func (r *VMRepository) Update(ctx context.Context, vm *models.VM) error {
 }
 
 func (r *VMRepository) Delete(ctx context.Context, id uint) error {
-	result := r.db.WithContext(ctx).Delete(&models.VM{}, id)
+	result := DBFromContext(ctx, r.db).WithContext(ctx).Delete(&models.VM{}, id)
 	if result.Error != nil {
 		return mapGORMError(result.Error)
 	}
@@ -45,7 +44,7 @@ func (r *VMRepository) Delete(ctx context.Context, id uint) error {
 
 func (r *VMRepository) GetByID(ctx context.Context, id uint) (*models.VM, error) {
 	var vm models.VM
-	err := r.db.WithContext(ctx).First(&vm, id).Error
+	err := DBFromContext(ctx, r.db).WithContext(ctx).First(&vm, id).Error
 	if err != nil {
 		return nil, mapGORMError(err)
 	}
@@ -54,6 +53,6 @@ func (r *VMRepository) GetByID(ctx context.Context, id uint) (*models.VM, error)
 
 func (r *VMRepository) GetAll(ctx context.Context) ([]models.VM, error) {
 	var vms []models.VM
-	err := r.db.WithContext(ctx).Find(&vms).Error
+	err := DBFromContext(ctx, r.db).WithContext(ctx).Find(&vms).Error
 	return vms, mapGORMError(err)
 }
