@@ -3,11 +3,18 @@ package main
 import (
 	"CPL/internal/config"
 	"CPL/internal/database"
+	"CPL/internal/handler"
 	"CPL/internal/logger"
+	"CPL/internal/middleware"
 	"CPL/internal/repository"
 	"CPL/internal/service"
+	"context"
+	"errors"
 	"log"
+	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"go.uber.org/zap"
 )
@@ -44,10 +51,40 @@ func main() {
 
 	vmService := service.NewVMService(vmRepo, taskRepo, txManager)
 	taskService := service.NewTaskService(taskRepo)
-	_ = vmService
-	_ = taskService
 
-	logger.Info("application started",
-		zap.String("http_port", cfg.HTTPPort),
-	)
+	vmHandler := handler.NewVMHandler(vmService)
+	taskHandler := handler.NewTaskHandler(taskService)
+
+	router := handler.NewRouter(vmHandler, taskHandler)
+	httpHandler := middleware.Logging(logger, middleware.Recovery(logger, router))
+
+	srv := &http.Server{
+		Addr:         ":" + cfg.HTTPPort,
+		Handler:      httpHandler,
+		ReadTimeout:  cfg.HTTPReadTimeout,
+		WriteTimeout: cfg.HTTPWriteTimeout,
+		IdleTimeout:  cfg.HTTPIdleTimeout,
+	}
+
+	go func() {
+		logger.Info("http server listening", zap.String("addr", srv.Addr))
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			logger.Fatal("http server failed", zap.Error(err))
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	logger.Info("shutting down server")
+
+	ctx, cancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		logger.Fatal("server shutdown failed", zap.Error(err))
+	}
+
+	logger.Info("server stopped")
 }
