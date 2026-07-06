@@ -20,27 +20,31 @@ import (
 )
 
 func main() {
-	mode := os.Getenv("MODE")
-	if mode == "" {
-		mode = "development"
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	logger, err := logger.Init(mode)
+	logger, err := logger.Init(cfg.AppEnv)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer logger.Sync()
 
-	cfg, err := config.LoadConfig()
-	if err != nil {
-		logger.Fatal("failed to load config",
-			zap.Error(err),
-		)
-	}
-
 	db, err := database.NewDB(cfg)
 	if err != nil {
 		logger.Fatal("failed to connect to database",
+			zap.Error(err),
+		)
+	}
+	sqlDB, err := db.DB()
+	if err != nil {
+		logger.Fatal("failed to get database handle",
+			zap.Error(err),
+		)
+	}
+	if err := database.Migrate(sqlDB); err != nil {
+		logger.Fatal("failed to apply database migrations",
 			zap.Error(err),
 		)
 	}
@@ -55,7 +59,7 @@ func main() {
 	vmHandler := handler.NewVMHandler(vmService)
 	taskHandler := handler.NewTaskHandler(taskService)
 
-	router := handler.NewRouter(vmHandler, taskHandler)
+	router := handler.NewRouter(vmHandler, taskHandler, sqlDB)
 	httpHandler := middleware.Logging(logger, middleware.Recovery(logger, router))
 
 	srv := &http.Server{
