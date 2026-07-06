@@ -12,12 +12,14 @@ var (
 )
 
 func mapGORMError(err error) error {
-	switch err {
-	case nil:
+	if err == nil {
 		return nil
-	case gorm.ErrRecordNotFound:
+	}
+
+	switch {
+	case errors.Is(err, gorm.ErrRecordNotFound):
 		return ErrNotFound
-	case gorm.ErrDuplicatedKey:
+	case errors.Is(err, gorm.ErrDuplicatedKey):
 		return ErrDuplicateKey
 	}
 

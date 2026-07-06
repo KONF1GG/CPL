@@ -4,7 +4,6 @@ import (
 	"CPL/internal/models"
 	"encoding/json"
 	"net/http"
-	"strconv"
 	"time"
 )
 
@@ -72,17 +71,6 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	_ = json.NewEncoder(w).Encode(v)
 }
 
-func decodeJSON(r *http.Request, dst any) error {
-	dec := json.NewDecoder(r.Body)
-	dec.DisallowUnknownFields()
-	return dec.Decode(dst)
-}
-
 func writeError(w http.ResponseWriter, status int, msg string) {
 	writeJSON(w, status, ErrorResponse{Error: msg})
-}
-
-func parseID(s string) (uint, error) {
-	id, err := strconv.ParseUint(s, 10, 64)
-	return uint(id), err
 }
