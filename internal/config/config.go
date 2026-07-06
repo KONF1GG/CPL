@@ -10,6 +10,8 @@ import (
 )
 
 type Config struct {
+	AppEnv string
+
 	HTTPPort         string
 	HTTPReadTimeout  time.Duration
 	HTTPWriteTimeout time.Duration
@@ -93,6 +95,7 @@ func LoadConfig() (*Config, error) {
 	}
 
 	return &Config{
+		AppEnv:           envOrDefault("APP_ENV", "development"),
 		HTTPPort:         envOrDefault("HTTP_PORT", "8080"),
 		HTTPReadTimeout:  httpReadTimeout,
 		HTTPWriteTimeout: httpWriteTimeout,
