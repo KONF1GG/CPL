@@ -2,12 +2,10 @@ package handler
 
 import "net/http"
 
-func NewRouter(vmHandler *VMHandler, taskHandler *TaskHandler) http.Handler {
+func NewRouter(vmHandler *VMHandler, taskHandler *TaskHandler, healthChecker HealthChecker) http.Handler {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
-	})
+	mux.HandleFunc("GET /health", Health(healthChecker))
 
 	mux.HandleFunc("POST /vms", vmHandler.Create)
 	mux.HandleFunc("GET /vms", vmHandler.List)
