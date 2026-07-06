@@ -5,6 +5,7 @@ import (
 	"context"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type VMRepository struct {
@@ -45,6 +46,18 @@ func (r *VMRepository) Delete(ctx context.Context, id uint) error {
 func (r *VMRepository) GetByID(ctx context.Context, id uint) (*models.VM, error) {
 	var vm models.VM
 	err := DBFromContext(ctx, r.db).WithContext(ctx).First(&vm, id).Error
+	if err != nil {
+		return nil, mapGORMError(err)
+	}
+	return &vm, nil
+}
+
+func (r *VMRepository) GetByIDForUpdate(ctx context.Context, id uint) (*models.VM, error) {
+	var vm models.VM
+	err := DBFromContext(ctx, r.db).WithContext(ctx).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		First(&vm, id).
+		Error
 	if err != nil {
 		return nil, mapGORMError(err)
 	}

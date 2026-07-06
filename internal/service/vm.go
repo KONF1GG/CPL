@@ -9,6 +9,7 @@ import (
 type VMRepository interface {
 	Create(ctx context.Context, vm *models.VM) error
 	GetByID(ctx context.Context, id uint) (*models.VM, error)
+	GetByIDForUpdate(ctx context.Context, id uint) (*models.VM, error)
 	GetAll(ctx context.Context) ([]models.VM, error)
 	Update(ctx context.Context, vm *models.VM) error
 	Delete(ctx context.Context, id uint) error
@@ -100,50 +101,34 @@ func (s *VMService) List(ctx context.Context) ([]models.VM, error) {
 }
 
 func (s *VMService) Start(ctx context.Context, id uint) (*models.Task, error) {
-	vm, err := s.vmRepo.GetByID(ctx, id)
-	if err != nil {
-		return nil, mapVMError(err)
-	}
-
-	switch vm.Status {
-	case models.VMStatusRunning:
-		return nil, ErrVMAlreadyRunning
-	case models.VMStatusPending:
-		return nil, ErrVMNotReady
-	}
-
-	return s.enqueueTask(ctx, vm, models.TaskTypeStart)
+	return s.enqueueTask(ctx, id, models.TaskTypeStart, validateStart)
 }
 
 func (s *VMService) Stop(ctx context.Context, id uint) (*models.Task, error) {
-	vm, err := s.vmRepo.GetByID(ctx, id)
-	if err != nil {
-		return nil, mapVMError(err)
-	}
-
-	switch vm.Status {
-	case models.VMStatusStopped:
-		return nil, ErrVMAlreadyStopped
-	case models.VMStatusPending:
-		return nil, ErrVMNotReady
-	}
-
-	return s.enqueueTask(ctx, vm, models.TaskTypeStop)
+	return s.enqueueTask(ctx, id, models.TaskTypeStop, validateStop)
 }
 
 func (s *VMService) Delete(ctx context.Context, id uint) (*models.Task, error) {
-	vm, err := s.vmRepo.GetByID(ctx, id)
-	if err != nil {
-		return nil, mapVMError(err)
-	}
-
-	return s.enqueueTask(ctx, vm, models.TaskTypeDelete)
+	return s.enqueueTask(ctx, id, models.TaskTypeDelete, validateDelete)
 }
 
-func (s *VMService) enqueueTask(ctx context.Context, vm *models.VM, taskType models.TaskType) (*models.Task, error) {
+func (s *VMService) enqueueTask(
+	ctx context.Context,
+	vmID uint,
+	taskType models.TaskType,
+	validate func(*models.VM) error,
+) (*models.Task, error) {
 	var task *models.Task
 
 	err := s.tx.WithinTransaction(ctx, func(txCtx context.Context) error {
+		vm, err := s.vmRepo.GetByIDForUpdate(txCtx, vmID)
+		if err != nil {
+			return mapVMError(err)
+		}
+		if err := validate(vm); err != nil {
+			return err
+		}
+
 		t := &models.Task{
 			Type:   taskType,
 			Status: models.TaskStatusPending,
@@ -166,6 +151,33 @@ func (s *VMService) enqueueTask(ctx context.Context, vm *models.VM, taskType mod
 	}
 
 	return task, nil
+}
+
+func validateStart(vm *models.VM) error {
+	switch vm.Status {
+	case models.VMStatusRunning:
+		return ErrVMAlreadyRunning
+	case models.VMStatusPending:
+		return ErrVMNotReady
+	}
+	return nil
+}
+
+func validateStop(vm *models.VM) error {
+	switch vm.Status {
+	case models.VMStatusStopped:
+		return ErrVMAlreadyStopped
+	case models.VMStatusPending:
+		return ErrVMNotReady
+	}
+	return nil
+}
+
+func validateDelete(vm *models.VM) error {
+	if vm.Status == models.VMStatusPending {
+		return ErrVMNotReady
+	}
+	return nil
 }
 
 func validateCreateInput(input CreateVMInput) error {
